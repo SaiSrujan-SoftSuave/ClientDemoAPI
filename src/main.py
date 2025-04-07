@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
 
-app = FastAPI(title="Employee API Project", version="1.0.0")
+app = FastAPI(title="Client Demo API ", version="1.0.0")
 
 @app.get(path="/")
 def root():
@@ -29,13 +29,13 @@ class EmployeeLoginResponse(BaseModel):
 @app.post("/api/auth/signin", response_model=EmployeeLoginResponse)
 def employee_signin(login: EmployeeLoginRequest):
     # Dummy implementation: in a real app, verify the credentials.
-    if login.email == "john.doe@example.com" and login.password == "securePassword123":
+    if login.email == "testDemo@gmail.com" and login.password == "Soft@123":
         return EmployeeLoginResponse(
             userId=101,
-            firstName="John",
-            lastName="Doe",
+            firstName="Test",
+            lastName="Demo",
             email=login.email,
-            token="eyJhbGciOiJIUzI1NiIsInR..."
+            token="eyJhbGciOiJIUzI1NiIsInR.HyJhbGciOiJIUzI1NiIsInR.KIyJhbGciOiJIUzI1NiIsInJ"
         )
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -127,7 +127,7 @@ class OrganizationProjectsResponse(BaseModel):
     message: str
 
 
-@app.post("/api/organisation/getUserOrganization", response_model=OrganizationProjectsResponse)
+@app.post("/api/project/getProjectList", response_model=OrganizationProjectsResponse)
 def get_organization_projects(org_request: OrganizationProjectsRequest, authorization: str = Header(...)):
     # Basic token check; in production, validate the JWT properly.
     if not authorization.startswith("Bearer "):
