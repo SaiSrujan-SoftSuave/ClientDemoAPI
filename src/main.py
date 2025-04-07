@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
+import uvicorn
 
 app = FastAPI(title="Employee API Project", version="1.0.0")
 
@@ -311,6 +312,5 @@ def add_activity_list(activity_request: AddActivityRequest, authorization: str =
 # ==============================
 
 if __name__ == "__main__":
-    import uvicorn
 
     uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True)
