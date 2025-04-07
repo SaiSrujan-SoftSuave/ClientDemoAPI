@@ -1,14 +1,18 @@
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uvicorn
 
 app = FastAPI(title="Client Demo API ", version="1.0.0")
 
+token = "eyJhbGciOiJIUzI1NiIsInR.HyJhbGciOiJIUzI1NiIsInR.KIyJhbGciOiJIUzI1NiIsInJ"
+
+
 @app.get(path="/")
 def root():
-    return {"message": "Server is running"}
+    return {"message": "Test Server is running"}
+
 
 # ==============================
 # Employee Login Endpoint
@@ -30,15 +34,31 @@ class EmployeeLoginResponse(BaseModel):
 @app.post("/api/auth/signin", response_model=EmployeeLoginResponse)
 def employee_signin(login: EmployeeLoginRequest):
     # Dummy implementation: in a real app, verify the credentials.
-    if login.email == "testDemo@gmail.com" and login.password == "Soft@123":
+    if login.email == "test@gmail.com" and login.password == "Soft@123":
         return EmployeeLoginResponse(
             userId=101,
             firstName="Test",
             lastName="Demo",
             email=login.email,
-            token="eyJhbGciOiJIUzI1NiIsInR.HyJhbGciOiJIUzI1NiIsInR.KIyJhbGciOiJIUzI1NiIsInJ"
+            token=token
         )
     raise HTTPException(status_code=401, detail="Invalid email or password")
+
+
+class EmployeeLogoutResponse(BaseModel):
+    status: str
+    data: Dict[str, Any]
+    message: str
+
+
+@app.get("/api/auth/signout", response_model=EmployeeLogoutResponse)
+def use_sign_out(authorization: str = Header(...)):
+    # Basic token check; in production, validate the JWT properly.
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return EmployeeLogoutResponse(status="success",
+                                  data={},
+                                  message="Logout sucessfully")
 
 
 # ==============================
@@ -79,7 +99,7 @@ def get_user_organization():
             enableScreenshot=0,
             description="Example organization description",
             role="Admin",
-            otherRoleIds=[3, 4]
+            otherRoleIds=[]
         ),
         Organization(
             name="TestOrg",
@@ -115,7 +135,7 @@ class Project(BaseModel):
     name: str
     status: int
     startDate: datetime
-    users: List[ProjectUser]
+    users: str
 
 
 class OrganizationProjectsData(BaseModel):
@@ -130,10 +150,6 @@ class OrganizationProjectsResponse(BaseModel):
 
 @app.post("/api/project/getProjectList", response_model=OrganizationProjectsResponse)
 def get_organization_projects(org_request: OrganizationProjectsRequest, authorization: str = Header(...)):
-    # Basic token check; in production, validate the JWT properly.
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token")
-
     # Dummy project data based on the provided organisationId.
     projects = [
         Project(
@@ -141,20 +157,14 @@ def get_organization_projects(org_request: OrganizationProjectsRequest, authoriz
             name="Project Alpha",
             status=0,
             startDate=datetime(2023, 1, 1, 10, 0, 0),
-            users=[
-                ProjectUser(userId=201, fullName="John Doe"),
-                ProjectUser(userId=202, fullName="Jane Smith")
-            ]
+            users="[{\"roleId\": 4, \"userId\": 101, \"fullName\": \"Sunil Kumar\", \"profileImage\": null}]"
         ),
         Project(
             projectId=102,
             name="Project Beta",
             status=0,
             startDate=datetime(2024, 2, 15, 9, 30, 0),
-            users=[
-                ProjectUser(userId=301, fullName="Alice Brown", profileImage="https://example.com/profiles/301.jpg"),
-                ProjectUser(userId=302, fullName="Bob White", profileImage="https://example.com/profiles/302.jpg")
-            ]
+            users="[{\"roleId\": 4, \"userId\": 101, \"fullName\": \"Sunil Kumar\", \"profileImage\": null}, {\"roleId\": 3, \"userId\": 722, \"fullName\": \"Siva Narayana Reddy\", \"profileImage\": \"https://bustlespot-images.s3.us-east-2.amazonaws.com/profile/722/195341.jpg\"}]"
         )
     ]
     return OrganizationProjectsResponse(
@@ -201,14 +211,11 @@ class TaskDetailsResponse(BaseModel):
 
 @app.post("/api/task/getTaskByProjectId", response_model=TaskDetailsResponse)
 def get_task_by_project_id(task_request: TaskDetailsRequest, authorization: str = Header(...)):
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    tasks = [
+    tasks: list[TaskDetail] = [
         TaskDetail(
             taskId=1663,
             name="Introduction",
-            projectId=803,
+            projectId=102,
             projectName="AI-ML",
             organisationId=698,
             lastScreenShotTime="00:00:00",
@@ -217,7 +224,7 @@ def get_task_by_project_id(task_request: TaskDetailsRequest, authorization: str 
         TaskDetail(
             taskId=1670,
             name="Interview",
-            projectId=803,
+            projectId=101,
             projectName="AI-ML",
             organisationId=698,
             lastScreenShotTime="00:00:00",
@@ -226,7 +233,7 @@ def get_task_by_project_id(task_request: TaskDetailsRequest, authorization: str 
         TaskDetail(
             taskId=1684,
             name="AI Database Query Generator",
-            projectId=803,
+            projectId=101,
             projectName="AI-ML",
             organisationId=698,
             lastScreenShotTime="00:00:00",
@@ -235,7 +242,7 @@ def get_task_by_project_id(task_request: TaskDetailsRequest, authorization: str 
     ]
     return TaskDetailsResponse(
         status="success",
-        data=TaskDetailsData(taskDetails=tasks),
+        data=TaskDetailsData(taskDetails=[i for i in tasks if i.projectId == task_request.projectId]),
         message="Success"
     )
 
@@ -245,17 +252,18 @@ def get_task_by_project_id(task_request: TaskDetailsRequest, authorization: str 
 # ==============================
 
 class Activity(BaseModel):
-    taskId: int
-    projectId: int
-    startTime: datetime
-    endTime: datetime
-    mouseActivity: int
-    keyboardActivity: int
-    totalActivity: int
-    notes: str
-    organisationId: int
-    uri: str
-    unTrackedTime: int
+    taskId: Optional[int] = 0
+    projectId: Optional[int] = 0
+    startTime: Optional[str] = None
+    endTime: Optional[str] = None
+    mouseActivity: Optional[int] = 0
+    keyboardActivity: Optional[int] = 0
+    totalActivity: Optional[int] = 0
+    billable: Optional[str] = ""
+    notes: Optional[str] = None
+    organisationId: Optional[int] = 0
+    uri: Optional[str] = None
+    unTrackedTime: Optional[int] = None
 
 
 class AddActivityRequest(BaseModel):
@@ -286,9 +294,6 @@ class AddActivityResponse(BaseModel):
 
 @app.post("/api/activity/addActivityList", response_model=AddActivityResponse)
 def add_activity_list(activity_request: AddActivityRequest, authorization: str = Header(...)):
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token")
-
     # Simulated database insert metadata.
     metadata = ActivityInsertMetadata(
         fieldCount=0,
@@ -312,5 +317,4 @@ def add_activity_list(activity_request: AddActivityRequest, authorization: str =
 # ==============================
 
 if __name__ == "__main__":
-
     uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True)
